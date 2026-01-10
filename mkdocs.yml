@@ -1,0 +1,104 @@
+site_name: ROS Base Documentation
+site_description: Standardized ROS2 Framework for Complex Robot Systems
+site_author: 11chens
+repo_url: https://github.com/11chens/ros_base
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.expand
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra:
+  alternate:
+    - name: 中文
+      link: /
+      lang: zh
+    - name: English
+      link: /en/
+      lang: en
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: zh
+          default: true
+          name: 中文
+          build: true
+        - locale: en
+          name: English
+          build: true
+      nav_translations:
+        en:
+          首页: Home
+          快速上手: Quick Start
+          环境配置: Installation
+          核心架构: Architecture
+          核心概念: Core Concepts
+          实战教程: Tutorials
+          可复用模块: Modules
+          进阶指南: Advanced Guides
+
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - 首页: index.md
+  - 快速上手:
+    - 环境配置: quick-start/installation.md
+    - 核心架构: quick-start/architecture.md
+  - 核心概念:
+    - base_manager (系统管家): core-concepts/manager.md
+    - base_node (双模态节点): core-concepts/node.md
+    - base_agent (算力与算法): core-concepts/agent.md
+    - base_handler (状态机与调度): core-concepts/handler.md
+  - 实战教程:
+    - 大脑 - VLM抓取任务: tutorials/vlm-pick-place.md
+    - 小脑 - RL运动控制: tutorials/rl-locomotion.md
+    - 协同 - Bridge桥接通信: tutorials/bridge-comm.md
+  - 可复用模块:
+    - 相机系统: modules/camera-system.md
+    - 异步可视化: modules/visualization.md
+    - 工具箱 (Utils): modules/utils.md
+  - 进阶指南:
+    - 多进程架构设计: guides/multi-process.md
+    - 性能调优: guides/performance.md
