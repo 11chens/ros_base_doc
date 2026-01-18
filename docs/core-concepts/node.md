@@ -15,7 +15,12 @@ sequenceDiagram
     participant OS as Main Loop (Timer)
     participant Mgr as Manager
     participant Node as BaseNode
+    participant ROS as ROS2 Network
 
+    Note over ROS, Node: Async Thread
+    ROS->>Node: 0. Topic Callback (Update State)
+
+    Note over OS, Mgr: Main Thread
     OS->>Mgr: 1. Timer Trigger (50Hz)
     Mgr->>Mgr: 2. Handler Logic Check
     Mgr->>Node: 3. Read Property (via self.nodes)
@@ -87,7 +92,7 @@ graph LR
 Agent 不需要关心底层的通信协议，只管调用 Node 的方法即可。
 
 ```python
-class Robot2VLMBridge(BaseNode):
+class VLM2RobotBridge(BaseNode):
     def send_command(self, vx, vy, wz):
         msg = Twist()
         msg.linear.x = vx

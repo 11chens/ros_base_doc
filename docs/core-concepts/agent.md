@@ -18,7 +18,7 @@
 
 ## 2. 编写一个 BaseAgent
 
-### 基础模板
+### 基础示例
 
 ```python
 from ros_base.agents.base_agent import BaseAgent
@@ -53,7 +53,7 @@ class TrackingAgent(BaseAgent):
 
 在 `ros_base` 实战中，Agent 通常分为两类：
 
-### 3.1 运控型 (Control Agent)
+### 3.1 执行型 (Control Agent)
 *   **特点**: 高频 (100Hz+)，低延迟，输入输出简单。
 *   **示例**: `quad_deploy` 中的 `LocoAgent`。
 *   **实现**: 通常做简单的 PID 计算或轻量级神经网络 (ONNX) 推理。

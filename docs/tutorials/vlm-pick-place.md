@@ -1,11 +1,12 @@
 # 实战：VLM 驱动的机械臂抓取
 
-本教程将带领您使用 `ros_base` 构建一个基于视觉语言大模型 (VLM) 的物体抓取应用。我们将复现 `HomiQuad-VLM` 项目中的核心逻辑。
+本教程将带领您使用 `ros_base` 构建一个基于视觉语言大模型 (VLM) 的物体抓取应用。
 
 ## 1. 任务目标
 
 *   用户输入自然语言指令（例如：“把那个红色的苹果拿给我”）。
 *   机器人使用 VLM (如 Qwen-VL) 理解图像，输出目标物体的 Bounding Box。
+*   使用tracker_agent对目标高频跟踪。
 *   使用 Handler 状态机控制机械臂逼近并抓取目标。
 
 ## 2. 目录结构设计
@@ -21,7 +22,7 @@ my_pick_project/
         camera_node.py    # 相机驱动
     agents/
         vlm_agent.py      # 大模型推理
-        tracker_agent.py  # 视觉跟踪 (YOLO/Sam)
+        tracker_agent.py  # 视觉跟踪 
     handlers/
         pick_fsm.py       # 状态机逻辑
 ```

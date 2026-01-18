@@ -15,7 +15,11 @@
 *   **Python**: 3.8 或更高版本。
 *   **基础工具**:
     ```bash
-    sudo apt install python3-pip git
+    sudo apt install python3-pip git tmux
+    ```
+*   **开发工具**:
+    ```bash
+    pip install pre-commit
     ```
 
 ---
@@ -33,16 +37,13 @@ git clone https://github.com/11chens/ros_base.git
 ```
 
 ### 步骤 2: 安装 Python 依赖
-进入仓库目录，使用 `pip` 以可编辑模式安装。这会自动解析 `setup.py` 中的依赖。
+进入仓库目录，使用 `pip` 以可编辑模式安装。这会自动解析 `setup.py` 中的依赖。同时初始化 pre-commit 钩子以规范代码风格。
 
 ```bash
 cd ros_base
 pip install -e .
+pre-commit install
 ```
-
-!!! tip "为什么使用 `-e` (Editable Mode)?"
-    使用 `-e` 安装意味着您对 `ros_base` 源码的任何修改都会立即生效，无需重新安装。这对于正在开发中的项目非常有用。
-
 ---
 
 ## 3. 验证安装

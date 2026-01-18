@@ -96,6 +96,7 @@ nav:
     - 小脑 - RL运动控制: tutorials/rl-locomotion.md
     - 协同 - Bridge桥接通信: tutorials/bridge-comm.md
   - 可复用模块:
+    - 启动编排系统: modules/launcher.md
     - 相机系统: modules/camera-system.md
     - 异步可视化: modules/visualization.md
     - 工具箱 (Utils): modules/utils.md
