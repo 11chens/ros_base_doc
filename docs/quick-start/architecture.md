@@ -1,8 +1,6 @@
 # 核心架构全景
 
-ROS Base 将一个复杂的机器人系统解构为四个标准化的核心元素：**Manager**、**Node**、**Agent** 和 **Handler**。
-
-它们之间的动态交互关系图：
+ROS Base 将一个复杂的机器人系统解构为四个标准化的核心元素：**Manager**、**Node**、**Agent** 和 **Handler**。它们在单线程事件循环中高效协作：
 
 ```mermaid
 graph TB
@@ -11,30 +9,35 @@ graph TB
         World[World]
     end
 
-    subgraph System["BaseManager System"]
+    subgraph System["BaseManager Node (Single Process)"]
         direction TB
 
-        subgraph Thread1["Thread 1: ROS Executor"]
-            InputNode["Input Node<br>(Subscriber)"]
+        subgraph EventLoop["ROS Event Loop (Main Thread)"]
+            direction TB
+            TimerTrigger["Timer Trigger (50Hz)"]
+            MsgCallback["Subscription Callback"]
         end
         
-        subgraph Thread2["Thread 2: Main Loop Timer"]
+        subgraph LogicFlow ["Sequential Execution"]
             direction TB
+            InputNode["Input Node<br>(Buffer Update)"]
             LogicHandler["BaseHandler<br>(FSM Dispatch)"]
             ComputeAgent["BaseAgent<br>(Computation)"]
             OutputNode["Output Node<br>(Publisher)"]
         end
     end
 
-    %% Async Phase
-    World == "1. Subscribe Msg" ==> InputNode
-    InputNode -. "2. Update Context (SHM)" .-> LogicHandler
-    
-    %% Sync Phase
-    LogicHandler -- "3. Read Data" --> ComputeAgent
-    ComputeAgent -- "4. Return Result" --> LogicHandler
-    LogicHandler -- "5. Send Data" --> OutputNode
-    OutputNode == "6. Publish Msg" ==> World
+    %% Event Sources
+    World == "1. ROS Topic" ==> MsgCallback
+    MsgCallback -.-> InputNode
+    TimerTrigger -.-> LogicHandler
+
+    %% Logic Chain
+    LogicHandler -- "2. Read State" --> InputNode
+    LogicHandler -- "3. Compute" --> ComputeAgent
+    ComputeAgent -- "4. Return" --> LogicHandler
+    LogicHandler -- "5. Action" --> OutputNode
+    OutputNode == "6. Publish" ==> World
 
     %% Styles
     classDef yellow fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
@@ -45,9 +48,9 @@ graph TB
     class InputNode,OutputNode yellow;
     class LogicHandler blue;
     class ComputeAgent green;
-    class Thread1,Thread2 box;
-
+    class EventLoop box;
 ```
+
 
 ---
 

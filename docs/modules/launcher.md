@@ -27,32 +27,67 @@
 
 ## 3. 目录与组织结构
 
+新架构不再将 `launch` 文件限死在 `ros_base` 库内。由于底层高度通用，建议在具体的业务代码仓中（如 `HomiQuad-VLM`）组织启动脚本文件：
+
 ```text
-ros_base/ros_base/
+HomiQuad-VLM/
 ├── launch/
-│   ├── base_launcher.py         # 核心启动引擎 (通用)
-│   ├── homi/                    # 项目配置子目录
-│   │   └── launch_cfg.yaml      # Homi 项目专属定义
-│   └── project_new/
-│       └── launch_cfg.yaml      # 新项目扩展示例
-└── docs/
-    └── launcher_system.md       # 本技术文档
+│   ├── homi_launch.py           # 业务调用入口 (实例化 BaseLauncher)
+│   └── launch_cfg.yaml          # 项目专属定义(Sessions & Nodes)
 ```
 
 ## 4. 使用维护指南
 
-### 4.1 配置文件规范
-在 YAML 的 `nodes` 列表中，每一个条目代表一个 TMUX 窗口：
-*   `cpus`: 推荐对 SDK 和对实时性敏感的算法节点（如 Kalman）使用独立的单核或核组。
-*   `command`: 完整的启动命令（如 `python test.py --arg1`）。
+### 4.1 配置文件规范 (`launch_cfg.yaml`)
+当前 `YAML` 配置支持多会话 (`sessions`) 的挂载。每一个 session 都会启动一个全新的 `tmux` 集群环境。
+
+每个 session 包含：
+*   **`env`**: `session_name`（会话名）、`workspace_root`（寻找工程的前缀目录）、`conda_env`（指定 Conda 环境）以及 `ros_setup`（ROS 环境变量执行脚本）。
+*   **`nodes`**: 一个列表，每一项代表该 session 下的一个 tmux 窗口：
+    *   `project`: 子工程名（自动 cd 进入该目录）
+    *   `cpus`: (`1-3` 或 `7`) 绑定特定 CPU 核心。如果不填则不绑定。
+    *   `command`: 要执行的指令。如果是字符串则是单条指令；**如果在列表下（如下文 VSLAM_DOCKER），将会阻塞式模拟依序交互输入**。
+
+```yaml
+sessions:
+  - env:
+      session_name: "homi_system"
+      workspace_root: "~/Project"
+      conda_env: "homi_run"
+      ros_setup: "~/unitree_ros2/setup_id1.sh"
+      
+    nodes:
+      - name: "RL_CONTROL"
+        project: "quad_deploy"
+        cpus: "7"
+        command: "python quad_deploy/scripts/homi/homi_run_sdk_v2.py --nosimrun --nodryrun"
+
+      - name: "KALMAN_NODE"
+        project: "ros_base"
+        cpus: "4-5"
+        command: "python ros_base/nodes/kalman/kf_sigma_node.py"
+
+  # 支持在同一个 yaml 中定义不同的会话，例如 Docker 环境
+  - env:
+      session_name: "vslam_session"
+      workspace_root: "~/Project"
+
+    nodes:
+      - name: "VSLAM_DOCKER"
+        project: "."
+        command:
+          - "isaac_ros_container"
+          - "source vslam.sh"
+          - "launch_vslam"
+```
 
 ### 4.2 运行指令
 
-在核心目录下运行：
+在您的业务逻辑仓运行：
 
 ```bash
-cd ~/Project/ros_base/ros_base/launch
-python3 base_launcher.py homi/launch_cfg.yaml
+cd ~/Project/HomiQuad-VLM/launch
+python3 homi_launch.py launch_cfg.yaml
 ```
 
 ### 4.3 常用交互操作 (TMUX)

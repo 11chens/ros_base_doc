@@ -13,18 +13,19 @@
 ```mermaid
 sequenceDiagram
     participant OS as Main Loop (Timer)
-    participant Mgr as Manager
-    participant Node as BaseNode
-    participant ROS as ROS2 Network
+    participant Mgr as Manager(Node)
+    participant Data as Shared Memory
 
-    Note over ROS, Node: Async Thread
-    ROS->>Node: 0. Topic Callback (Update State)
-
-    Note over OS, Mgr: Main Thread
+    Note over OS, Mgr: Single Thread Process
+    
     OS->>Mgr: 1. Timer Trigger (50Hz)
     Mgr->>Mgr: 2. Handler Logic Check
-    Mgr->>Node: 3. Read Property (via self.nodes)
-    Mgr->>Node: 4. Call pub method
+    Mgr->>Data: 3. Read Property (from msg callback)
+    Mgr->>Mgr: 4. Execute Logic
+    
+    Note right of Mgr: Interleaved in same thread
+    ROS->>Mgr: Async Subscription Callback
+    Mgr->>Data: Update Shared Variable
 ```
 
 ### 独立模式 (Standalone Mode)

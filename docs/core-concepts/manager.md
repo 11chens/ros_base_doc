@@ -4,7 +4,13 @@
 
 ## 1. 为什么它是唯一的 "ROS Node"?
 
-在 `ros_base` 架构中，为了避免多进程通信的开销，我们将所有子模块“依附”在一个主进程内。`BaseManager` 继承自 `rclpy.node.Node`，它是操作系统和 ROS2 网络中可见的实体。
+在 `ros_base` 架构中，为了避免多进程通信的开销，我们将所有子模块“依附”在一个主进程内。`BaseManager` 继承自 `rclpy.node.Node`，它是操作系统和 ROS2 网络中可见的物理实体。
+
+**单线程事件循环机制**：
+Manager 使用默认的 ROS2 Executor（通常是 SingleThreadedExecutor）。这意味着：
+1.  **Timer Loop**: 主逻辑（FSM、Handlers）由定时器触发。
+2.  **External Msg**: 订阅的消息回调会插入到主线程的空闲时间执行，更新内部状态（State）。
+3.  **Thread Safety**: 由于所有逻辑都在同一个线程中顺序执行，访问 `self.nodes` 或 `self.agents` 中的共享变量通常不需要锁（Lock）。
 
 ```python
 class BaseManager(Node):

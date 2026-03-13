@@ -56,7 +56,7 @@ plugins:
           环境配置: Installation
           核心架构: Architecture
           核心概念: Core Concepts
-          实战教程: Tutorials
+          参考应用工程: Examples
           可复用模块: Modules
           进阶指南: Advanced Guides
 
@@ -91,10 +91,9 @@ nav:
     - base_node (双模态节点): core-concepts/node.md
     - base_agent (算力与算法): core-concepts/agent.md
     - base_handler (状态机与调度): core-concepts/handler.md
-  - 实战教程:
-    - 大脑 - VLM抓取任务: tutorials/vlm-pick-place.md
-    - 小脑 - RL运动控制: tutorials/rl-locomotion.md
-    - 协同 - Bridge桥接通信: tutorials/bridge-comm.md
+  - 参考应用工程:
+    - 具身智能 (HomiQuad-VLM): examples/homiquad-vlm.md
+    - 运动控制 (Quad-Deploy): examples/quad-deploy.md
   - 可复用模块:
     - 启动编排系统: modules/launcher.md
     - 相机系统: modules/camera-system.md
