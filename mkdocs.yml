@@ -3,6 +3,7 @@ site_description: Standardized ROS2 Framework for Complex Robot Systems
 site_author: 11chens
 repo_url: https://github.com/11chens/ros_base
 edit_uri: edit/master/docs/
+site_url: https://11chens.github.io/ros_base_doc/
 
 theme:
   name: material
@@ -27,15 +28,6 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-
-extra:
-  alternate:
-    - name: 中文
-      link: /
-      lang: zh
-    - name: English
-      link: /en/
-      lang: en
 
 plugins:
   - search
