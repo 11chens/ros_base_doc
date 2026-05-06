@@ -1,68 +1,66 @@
+<!-- i18n-sync: source=docs/index.md; sha256=B22AA9726C25FBC1E9183C80C88D0A35AE9CD75C50C0A4A6F5130448D0681BBC -->
 # ROS Base Project
 
-**ROS Base** is a standardized application framework designated for complex robot systems based on ROS2 (Python).
+**ROS Base** is a ROS2 Python framework for complex robotic applications. Its goal is not to wrap ROS one more time, but to reduce the engineering problems that most easily grow out of control in large projects into a fixed structure:
 
-By introducing the **Manager-Node-Agent-Handler** layered architecture, it resolves the conflict between "Monolithic Big Node" and "Loose Multi-process" paradigms in traditional ROS development, providing a **high-cohesion, low-coupling, and plugin-extensible** development standard.
+- How to separate communication, algorithms, state machines, and lifecycle management.
+- How to share context inside one main process without turning the codebase into one giant node.
+- How to move high-load modules into separate processes when needed while keeping the whole system under one main flow.
+
+This documentation is synced to the current `ros_base` implementation and explains the framework through two real projects:
+
+- `SigLoMa-VLM`: low-frequency task orchestration, VLM calls, and visual tracking.
+- `quad_deploy`: high-frequency RL control, hardware bridging, and joystick-driven state machines.
 
 ---
 
-## Why ROS Base?
+## Why ROS Base
 
-When developing large-scale robot systems involving task planning, locomotion control, SLAM, and object detection, architects often face a dilemma:
+When building robot projects, teams often swing between two extremes:
 
-### 1. Pain Points of Traditional Approaches
+=== "Approach A: One Large Node"
 
-=== "Scenario A: The Big Node (Monolithic)"
+    All subscriptions, caches, algorithms, and control logic live in one class.
 
-    Writing all functionalities (subscription, preprocessing, computation, publishing) into one gigantic Class.
-    
-    *   **:white_check_mark: Pros**: Direct memory access for data, ultra-low latency.
-    *   **:x: Cons**: 
-        *   **High Coupling**: Changes in one part affect the whole system. Hard to maintain.
-        *   **Hard to Test**: To test a "vision algorithm," you are forced to launch the entire "locomotion system."
-        *   **Low Reusability**: Code is tightly bound to a specific project.
+    Pros:
 
-=== "Scenario B: Micro-services (Multi-process)"
+    - Data access is simple and adds almost no extra communication overhead.
 
-    Splitting every feature into independent ROS Node processes.
-    
-    *   **:white_check_mark: Pros**: Physical isolation of modules, thorough decoupling.
-    *   **:x: Cons**: 
-        *   **Cumbersome Startup**: Requires maintaining long Launch files or opening multiple terminals.
-        *   **Communication Overhead**: Inter-process data exchange requires serialization (Topic), adding latency.
-        *   **Complex Coordination**: Handshakes, state synchronization, and parameter configuration between nodes become messy.
+    Cons:
 
-### 2. The ROS Base Solution
+    - Module boundaries become blurry, which makes maintenance and reuse difficult.
+    - Testing one part of the logic often requires launching the whole system.
+    - State machines, callbacks, and algorithm calls easily become tangled together.
 
-**ROS Base adopts "Scenario C": Manager-based Intra-process Decoupling.**
+=== "Approach B: Everything as Separate Processes"
+
+    Every function becomes an independent ROS node connected by topics or services.
+
+    Pros:
+
+    - Physical isolation is clear and module boundaries are explicit.
+
+    Cons:
+
+    - Startup chains become complicated and debugging costs increase.
+    - Cross-process serialization becomes expensive, especially for images and high-frequency control.
+    - Handshakes, state synchronization, and resource cleanup become harder to manage.
+
+### The ROS Base compromise
+
+ROS Base uses a **single main node + in-process composition + optional multi-process sidecars** pattern:
 
 ![Architecture](images/framework.png)
 
-We introduce a core concept —— **BaseManager**:
-
-1.  **Attached Operation**: 
-    *   All sub-nodes (Nodes) and algorithm modules (Agents) are registered into the Manager.
-    *   They appear as a single ROS Node externally but share memory data internally via `self` attributes (solving communication overhead).
-2.  **Dual-Mode Design**:
-    *   Every **BaseNode** can run attached within a Manager OR **start independently as a standard ROS2 Node** at any time (solving testing difficulties).
-3.  **Separation of Concerns**:
-    *   **Node**: Handles data I/O only.
-    *   **Agent**: Handles algorithm computation only.
-    *   **Handler**: Handles business logic and FSM only.
-    *   **Manager**: Manages the lifecycle of everything.
+1. `BaseManager` is the only core object in the main process that directly inherits `rclpy.node.Node`.
+2. `BaseNode` acts as the communication wrapper layer. When attached to a manager, it reuses the same ROS node. When debugged independently, it can also spin on its own.
+3. `BaseAgent` holds computation logic and does not own publishers or subscriptions directly.
+4. `BaseHandlers` drives scheduling, business flow, and state machines.
+5. Modules that genuinely slow down the main loop can be mounted into separate processes through `register_multiprocess_nodes()`.
 
 ---
 
-## Key Features
-
-*   **⚡ High Performance**: Supports multi-process mounting (`register_multiprocess_nodes`) to easily isolate CPU-intensive tasks (e.g., camera capture).
-*   **🧩 Reusable**: Comes with out-of-the-box camera wrappers (`CamSubNode`), visualization modules (`Overlay`), and math utilities.
-*   **🩺 Debug Friendly**: Built-in `profile_latency` decorators and unified logging system make performance bottlenecks visible.
-*   **🤖 Field Proven**: Stably running in **HomiQuad-VLM** (Brain-Cerebellum synergy) and **Quad-Deploy** (RL Locomotion) projects.
-
 ## Quick Start
-
-Install via command line:
 
 ```bash
 git clone https://github.com/11chens/ros_base.git
@@ -70,4 +68,13 @@ cd ros_base
 pip install -e .
 ```
 
-Next, read the [**Quick Start**](quick-start/installation.md) guide.
+To preview this documentation site locally:
+
+```bash
+git clone https://github.com/11chens/ros_base_doc.git
+cd ros_base_doc
+pip install -r requirements.txt
+mkdocs serve
+```
+
+The recommended next step is to read [Installation](quick-start/installation.md) and [Architecture](quick-start/architecture.md).

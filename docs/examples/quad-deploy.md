@@ -1,98 +1,171 @@
-# 参考应用工程：Quad-Deploy (高频运动控制层)
+# 参考应用工程：Quad-Deploy
 
-`Quad-Deploy` 提供了基于四足机器人的强化学习（RL）底层控制与硬件设备驱动的参考实现。区别于 `HomiQuad-VLM` 侧重于宏观任务调度与高延迟模型交互，`Quad-Deploy` 专注于解决机器人运行过程中的核心痛点：**在严苛的硬实时（Hard Real-time）约束下（50Hz / 200Hz），如何保证控制模型推理的时序确定性，并安全、稳健地调度多维度物理外设。**
+`quad_deploy` 展示了 `ros_base` 在“高频控制层”里的用法。相比 `SigLoMa-VLM` 的任务型流程，这个仓更强调：
 
-## 1. 核心架构：高频确定性调度
+- 高频主循环
+- RL Agent 切换
+- 手柄驱动状态机
+- 与上位机桥接
+- 必要时的外部进程隔离
 
-四足机器人的局部运动学控制对时序抖动（Jitter）极度敏感。由线程抢占、锁竞争或进程间通信（IPC）阻塞引起的运行周期延迟，均会导致机器人姿态发散甚至设备受损。
+## 1. 当前入口文件
 
-**架构设计规范：**
-依托 `ROS Base` 框架的底层特性，`Quad-Deploy` 将高频传感器感知、策略模型推理以及运动指令下发流程，严格收敛于单一执行线程（Single-Threaded Executor）。此范式在每个控制周期内确保：
+当前主入口是：
 
-1. **状态同步读取**：所有共享状态内存级别的读取是严格对齐的。
-2. **推理连续性**：深度学习模型（ONNX Runtime）的连续前向传播过程免受外部事件中断。
-3. **消除上下文开销**：从根本上杜绝了多线程并发环境下的锁竞争与上下文切换（Context Switch）损耗。
-
----
-
-## 2. 系统模块解构
-
-在核心入口脚本 `homi_run_sdk_v2.py` 中，系统采用依赖注入的装配模式构建整机运行时环境：
-
-### 核心编排器 (HomiRunSDKV2 / BaseManager)
-作为整机软硬件生命周期的绝对中枢，负责系统时钟的初始化与模块挂载：
-```python
-class HomiRunSDKV2(BaseManager):
-    def __init__(self, *args, **kwargs):
-        # 挂载状态机转移逻辑 (Handler)
-        kwargs["handlers_class"] = HomiHandler
-        super().__init__(*args, **kwargs)
-
-        # 硬件生命周期握手机制：确保进入主控制循环前，底层硬件通信总线已就绪
-        if kwargs.get("wait_robot", True):
-            self.add_handshake_rule("Robot Connection", lambda: hasattr(self.nodes.get("robot"), "low_state"))
+```
+quad_deploy/scripts/sigloma/sigloma_run_sdk.py
 ```
 
-### 物理抽象层 (Nodes)
-将异步形式的物理硬件总线协议抽象、转换为系统内部标准的同步数据结构常量。
-- **`robot` (`UnitreeGo2SDKNode`)**: 底层伺服电机与运动控制驱动映射。
-- **`joystick` (`JoystickSDKNode`)**: 外部无线交互终端的数据解析。
-- **`vlm` (`VLM2BobotBridge`)**: 与上位机（导航层/视觉规划层）的网关协议桥接。
-- **`gripper` (`GripperNode`)**: 夹爪末端执行器的物理接口层。
+这里定义了：
 
-### 策略运算层 (Agents)
-承载系统具体的运算负荷（如强化学习 Policies），剥离一切平台通信依赖，封装为纯粹的运算黑盒。
-- **`stand` (`StandAgent`)**: 静态位姿解算与平衡维持。
-- **`loco` (`HomiLocoAgent`)**: 多地形动态位姿的移动生成。
-- **`nav` (`HomiNavAgent`)**: 基于目标引导的动态导航策略。
-- **`turn` (`HomiTurnAgent`)**: 原地自旋与方向重定向。
+```
+class SigLoMaRunSDK(BaseManager):
+    ...
+```
 
----
+并在 `setup_environment()` 中装配：
 
-## 3. 系统鲁棒性与安全隔离机制
+### Nodes
 
-作为直接涉及高功率伺服控制的底层系统，Quad-Deploy 引入了多层次的系统级容错与硬件对抗设计：
+- `robot`: `UnitreeGo2SDKNode`
+- `vlm`: `VLM2BobotBridge`
+- `gripper`: `GripperNode`
+- `joystick`: `JoystickNode`
 
-### CPU 核心亲和性绑定 (Core Pinning)
-为对抗操作系统后台进程调度引起的时序波动，运行组件经由 `Launch Yaml` 中的 `taskset` 指令加载。系统强制将高频运控节点（例如 200Hz ONNX 推理环）锚定至专用的物理 CPU 核心，在操作系统内核调度层面切断外部应用的算力争抢，构建稳固的硬实时沙盒。
+### Agents
 
-### 底层总线抢占与指令权隔离
-不同于调用原厂高层封装的 API 接口，`Quad-Deploy` 采取底层 PD 关节扭矩穿透控制（Joint Torque Control）。在系统主频拉起前，架构主动拉起 `close_sport_client()` 终止厂商附带的默认运动节点。该独占式设计确立了当前框架对底层通讯总线的唯一发包权，彻底排除了多进程指令交错并发导致的硬件震荡与偶发失效。
+- `stand`
+- `loco`
+- `nav`
+- `turn`
+- `auto_trigger`
 
-### 硬件级异常熔断与降级拦截
-系统内建的全局状态机 (`HomiHandler`) 在逻辑调度外，严格实现了物理设备的安全边界：
+## 2. 高频控制场景下，Manager 负责什么
 
-- **高优停机熔断**：捕获到终端的 `L2` 中断硬件请求时，系统立即阻断所有 Agent 推理流，转入 `emergency` 态并同步触发 `turn_off_motors()` 切断关节输出扭矩，杜绝失控风险。
-- **状态机无损热重置**：设备熔断后无需重启 ROS 进程守护，直接提供无缝重置链路（`L1` 触发 `recovery`）。状态机在此模式下重定向至基础 `stand_agent` （触发 `init_motors()`），实现伺服系统的低摩擦预接管与极速热启动。
-- **非破坏性物理验证 (Dry-run)**：应对实机部署时的未知环境风险，提供 `--dry_run` 参数支持。该模式允许指令系统流转所有复杂的阶段迁移（包括接受导航节点输入、执行夹爪逻辑），但在最底层拦截对伺服硬件的真实扭矩派发，为实机软硬件联调提供物理隔离观察窗。
-- **指令流授权与验证隔离 (Auto/Teleop)**：基于 `--auto` 标记对局部决策（Agent）与底盘执行设立防火墙。常态下（`human_teleop`），尽管导航算法处于高速运算状态，底盘仍阻断接收算法指令层写入，维持安全人工接管。仅当人为触发授权后（`R1`），上层导航指令级才实现通道贯通。此旁路监听（Bypass）机制最大程度地保障了在真机测试初期评估上层策略收敛性的安全性。
+`SigLoMaRunSDK` 很克制，只做：
 
----
+- 注入 `SigLoMaHandler`
+- 定义握手规则
 
-## 4. 人机交互与硬件中断映射 (Joystick FSM)
+例如：
 
-在并发繁杂的智能运动平台上，人工干预具备最高调度层级与强制穿透能力。操作员终端在各状态集下实现了强约束的安全响应：
+```
+if wait_robot:
+    self.add_handshake_rule(
+        "Robot Connection",
+        lambda: hasattr(self.nodes.get("robot"), "low_state"),
+    )
+```
 
-| 硬件中断实体 | 系统前置状态上下文 | 目标状态迁移 / 执行映射 | 架构设计意图 |
-| :---: | :--- | :--- | :--- |
-| **L2** | `ANY` 任意阶段均可 | 强切 `emergency` | **物理防溢出接管**：无视计算环状态，即刻切断运控底层伺服输出，保护硬件主体。 |
-| **L1** | 必须处于 `emergency` | 降级重置至 `recovery` | **系统热态重置**：在免进程重启的条件下，完成下位机总线复位与伺服唤醒。 |
-| **R2** | `ANY` 任意阶段均可 | 强切降级 `human_teleop`| **控制权抢占 (Override)**：上层感知/策略产生发散迹象时，一键切断 AI 对底盘的输入权柄，回归人工介入模式。 |
-| **R1** | 处于待命态 `human_teleop` | 状态移交 `turn`/`navigation`| **策略授权流转**：核发初始环境处于稳定安全范围后，赋予自动业务流底盘操控权限。 |
-| **X** | 当且仅当 `stand` 姿态收敛时 | 流转至待命态 `human_teleop` | **稳态收敛验收**：防止开机起桥阶段因姿态未达稳态引起后续算法发散，强制要求人工验收机器人起伏平稳。 |
-| **A** | 处于 `navigation` 业务期 | 切入独立业务 `gripper_start` | **异步协同触发**：在主驱干框架外，提供对独立执行机构时序动作的验证触发。 |
-| **B** | `ANY` 任意阶段均可 | 硬件状态反转 `toggle()` | **离散平行中断**：免扰动全局主 FSM 逻辑，支持终端夹爪平行工况的开闭环切换。 |
+真正的主频由构造参数控制：
 
----
+- 仿真：`200Hz`
+- 实机：`50Hz`
 
-## 5. 边缘组件的多进程沙盒隔离
+## 3. Handler 负责全局控制态切换
 
-由于存在部分如伪终端通信等不受控节点的集成需求，考虑到不可污染核心单线程（200Hz 控制域）的高频循环，系统引入了脱离主进程生命周期的外挂注册架构：
+核心逻辑在：
 
-```python
-# 注册不受控环境的独立进程队列与通信宿主（如 socat 伪终端宿主与键盘指令驱动）
-cmds_dict["sim_port"] = "socat -d -d pty,raw,echo=0,link=/tmp/pty10 pty,raw,echo=0,link=/tmp/pty11 &"
+```
+quad_deploy/handlers/sigloma_handler.py
+```
+
+这个 Handler 使用的是“直接写 `manager.state`”的风格。常见状态包括：
+
+- `cold_start`
+- `recovery`
+- `human_teleop`
+- `turn`
+- `navigation`
+- `gripper_start`
+- `emergency`
+
+状态切换由：
+
+- joystick 按键
+- VLM 消息是否到达
+- 当前 Agent 是否 `done`
+- 自动触发器判断
+
+共同决定。
+
+## 4. `BaseRLAgent` 体现了高频 Agent 的组织方式
+
+`quad_deploy/agents/base_rl_agent.py` 很值得参考，因为它把高频 Agent 的共性收得很干净：
+
+- 从 Node 取 `robot` / `joystick`
+- 解析配置
+- 维护观测历史 `CircularBuffer`
+- 用 `decimation` 控制真正推理频率
+
+关键逻辑：
+
+```
+def handle(self):
+    if self.timestamp % self.decimation == 0:
+        action, p_gains, d_gains, done = self.step()
+    else:
+        action, p_gains, d_gains, done = None, None, None, None
+    self.robot.send_action(action, p_gains, d_gains)
+```
+
+该设计使得：
+
+- Manager 可以维持稳定主循环
+- Agent 不必每一拍都跑完整模型
+- 控制输出仍然按统一接口下发
+
+## 5. 手柄与安全态是怎么做的
+
+`SigLoMaHandler.get_state_transition()` 里把很多现场常用的安全规则写得很明确：
+
+- `L2` -> `emergency`
+- `L1` -> `recovery`
+- `R2` -> 强制回 `human_teleop`
+- `R1` -> 从人工态进入自动控制流
+- `start` -> 直接触发夹爪动作
+
+这说明 `ros_base` 适合将“人机输入 -> 状态切换 -> 当前 Agent 选型”这条链收敛在同一个 Handler 中。
+
+## 6. 与上位机的桥接
+
+`VLM2BobotBridge` 负责接收来自高层的：
+
+- `/control/turn`
+- `/control/grasp`
+- `/geometry_msgs/sigma_points_filtered`
+- `/control/object_ready`
+
+并回传：
+
+- `/control/rl_ready`
+- `/control/turn_done`
+- `/control/grasp_done`
+- `/control/euler_rpy`
+
+这和 `SigLoMa-VLM` 里的 `Robot2VLMBridge` 刚好形成上下位配对。
+
+## 7. 多进程隔离是怎么接进来的
+
+`sigloma_run_sdk.py` 里在 `rclpy.init()` 之前先调用：
+
+```
 processes = register_multiprocess_nodes(mp_nodes_dict, cmds_dict)
 ```
 
-该策略将异构或 I/O 阻塞型子任务严密隔离于主控进程的内存及时间片系统外，大幅度提升了核心运行时的抗强干扰能力。
+当前代码里典型用途包括：
+
+- `socat` 模拟串口
+- 仿真用键盘输入节点
+
+这些都属于“不能污染主控制循环，但又必须跟着系统生命周期走”的边缘进程。
+
+## 8. 这个工程给 `ros_base` 用户的启发
+
+对于高频机器人控制层，`quad_deploy` 的这套结构具有较高的参考价值：
+
+1. Manager 只负责时钟、握手和收尾
+2. Handler 负责状态切换和 Agent 选择
+3. 高频 Agent 使用统一基类和 decimation
+4. 协议桥接单独放在 Node
+5. 边缘工具进程通过多进程接口外挂

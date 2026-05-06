@@ -1,64 +1,89 @@
 # 环境配置与安装
 
-## 1. 前置依赖
+## 1. 运行前提
 
-### 操作系统
-*   **Ubuntu 22.04** (推荐 ROS2 Humble) 或 **Ubuntu 20.04** (ROS2 Foxy)
-*   **Linux** 内核建议 5.15+ (如果使用最新的硬件驱动)
+`ros_base` 当前代码主要面向 Linux 下的 ROS2 Python 工作流。推荐采用 **RoboStack + Conda/Mamba** 的方式安装 ROS2，将运行环境放在独立虚拟环境中，而不是安装到系统目录。
 
-### 软件环境
-*   **ROS2**: 确保已安装完整的 Desktop 版本。
-    ```bash
-    # Ubuntu 22.04 示例
-    sudo apt install ros-humble-desktop
-    ```
-*   **Python**: 3.8 或更高版本。
-*   **基础工具**:
-    ```bash
-    sudo apt install python3-pip git tmux
-    ```
-*   **开发工具**:
-    ```bash
-    pip install pre-commit
-    ```
+### 基础要求
 
----
+- Miniforge、Mambaforge 或其他兼容的 Conda 发行版
+- Python 3
+- `git`
+- 如果要使用 `BaseLauncher`，还需要 `tmux`
 
-## 2. 安装 ros_base
-
-我们将以“源码安装 (Source Installation)”的方式进行，以便您随时查看核心代码或进行修改。
-
-### 步骤 1: 克隆仓库
-建议将代码放在您的工作空间中（例如 `~/project`）。
+示例：
 
 ```bash
-cd ~/project
-git clone https://github.com/11chens/ros_base.git
+sudo apt install git tmux
 ```
 
-### 步骤 2: 安装 Python 依赖
-进入仓库目录，使用 `pip` 以可编辑模式安装。这会自动解析 `setup.py` 中的依赖。同时初始化 pre-commit 钩子以规范代码风格。
+## 2. 安装 `ros_base`
+
+建议先创建独立的 RoboStack 环境，再在该环境中安装 ROS2 与 `ros_base`。下面给出一组推荐示例：
 
 ```bash
+mamba create -n rosbase python=3.10
+conda activate rosbase
+mamba install -c conda-forge -c robostack-humble ros-humble-desktop
+source $CONDA_PREFIX/setup.bash
+```
+
+如项目使用其他 ROS2 发行版，可将上例中的 `humble` 替换为实际所需版本。
+
+随后安装 `ros_base`：
+
+```bash
+cd ~/Project
+git clone https://github.com/11chens/ros_base.git
 cd ros_base
 pip install -e .
-pre-commit install
 ```
----
+
+这种方式的优点是：
+
+- ROS2 运行环境与系统环境隔离
+- 不占用系统目录中的 `/opt/ros`
+- 便于为不同项目维护不同版本的 ROS2 依赖
 
 ## 3. 验证安装
 
-安装完成后，可以通过以下 Python 命令验证是否成功导入。
-
 ```bash
-python3 -c "import ros_base; print('ros_base installed successfully at:', ros_base.__file__)"
+python3 -c "import ros_base; print('ros_base import ok')"
 ```
 
-如果输出类似 `/home/robot/project/ros_base/ros_base/__init__.py` 的路径且没有报错，说明安装成功。
+也可以直接验证某个核心模块：
 
-### (可选) 验证 ROS2 环境
-确保您的终端已经 sourced 了 ROS2 的环境文件：
 ```bash
-source /opt/ros/humble/setup.bash
-# 或者将其加入 ~/.bashrc
+python3 -c "from ros_base.manager.base_manager import BaseManager; print(BaseManager)"
 ```
+
+## 4. 验证独立节点模式
+
+以 RealSense 相机订阅节点为例，独立模式下需自行初始化 `rclpy`，而不是只运行一个纯 Python 类。
+
+```bash
+python3 ros_base/nodes/camera/cam_sub_node.py --camera realsense_d435i_align --vis_rgb
+```
+
+这条命令适合用来快速验证：
+
+- ROS2 topic 是否正常
+- 图像是否进来了
+- `CamSubNode` 的独立模式是否能工作
+
+## 5. 本地预览文档站点
+
+如需维护 `ros_base_doc`：
+
+```bash
+cd ~/Project
+git clone https://github.com/11chens/ros_base_doc.git
+cd ros_base_doc
+pip install -r requirements.txt
+mkdocs serve
+```
+
+当前文档站的依赖较为轻量，仅需：
+
+- `mkdocs-material`
+- `mkdocs-static-i18n`

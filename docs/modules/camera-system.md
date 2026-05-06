@@ -1,100 +1,151 @@
-# 模块：相机订阅节点 (CamSubNode)
+# 模块：相机订阅节点 (`CamSubNode`)
 
-相较于纯粹的底层驱动硬件读取，`ros_base` 提供的 `CamSubNode` (`ros_base.nodes.camera.cam_sub_node.CamSubNode`) 是一个高度封装的、专为机器人算法端设计的“数据搬运工”。
+`CamSubNode` 是 `ros_base` 里目前最成熟的可复用 Node 之一。它做的事很明确：
 
-它的核心作用是将 ROS 2 中的图像类型 (如 `Image`, `CompressedImage`) 自动转化为算法能直接使用的 `numpy.ndarray` 结构，并缓存在内存中供其它模块（Handler/Agent）高速读取。
+- 订阅 RGB / Depth / Infra / CameraInfo
+- 自动把 ROS 图像消息转成 `numpy.ndarray`
+- 把最新结果缓存成易读属性
+- 按需做简单可视化和录像
 
-## 1. 核心特性
+## 1. 当前提供的数据
 
-1. **多流解析与自适应编解码**：支持同步处理 RGB、Depth 深度图和双目 Infra 红外图像信息。可以自动根据配置判断当前网域流使用的是原图还是 `CompressedImage` 并分别解码。
-2. **图像实时预处理**：内建了 Gamma 矫正与限制对比度自适应直方图均衡化 (CLAHE) 支持，无需修改算法逻辑即可应对光照不均和大量阴影的场景。
-3. **基于线程的硬件级录制**：内部提供纯后台线程的 OpenCV 多媒体录像机制及同步的系统时间戳日志（无需启动 `rosbag record`引入重复订阅导致潜在阻塞），大大提高运行性能和调试验证效率。
+实例运行后，常用属性包括：
 
----
+- `img`: 最新 RGB 图像，`numpy.ndarray`
+- `img_timestamp`
+- `img_shape`
+- `depth`
+- `depth_timestamp`
+- `depth_shape`
+- `rgb_info`
+- `infra1` / `infra2`
+- `infra1_info`
+- `infra_fx`
+- `infra_baseline`
 
-## 2. 在 Manager 中的典型用法 (依附模式)
+这也是为什么在 Handler 或 Agent 里可以直接写：
 
-`CamSubNode` 最标准的使用场景是挂载在 `BaseManager` 的节点字典中。
-
-我们以 `homi_vlm` 项目的抓取任务 (`pick_place_run_v3.py`) 为例进行分析：
-
-### 2.1 依赖注册与系统握手
-在 Manager 的 `__init__` 函数中，我们通过增加一个握手条件 `Handshake Rule` 来确保真正执行主循环逻辑前，相机的首帧图像已经到达。
-
-```python
-class PickPlaceRUNV3(BaseManager):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # 获取挂载的相机节点实例
-        self.camera: CamSubNode = self.nodes["camera"]
-
-        # 添加握手规则：阻塞系统启动，直到 self.camera.img 成功取得数据
-        self.add_handshake_rule("Camera Stream", lambda: self.camera.img is not None)
+```
+img = self.camera.img
+depth = self.camera.depth
+timestamp = self.camera.img_timestamp
 ```
 
-然后在执行的主入口将 `CamSubNode` 注册进启动字典：
+## 2. 支持的相机配置
 
-```python
-def main(args):
-    # 注册配置字典
-    nodes_dict = {
-        "camera": CamSubNode,
-        # ... 其他 Node
-    }
-    
-    fsm_run = PickPlaceRUNV3(
-        node_name="PickPlaceOrchestrator",
-        nodes_dict=nodes_dict,
-        # ...
-    )
-    fsm_run.start_main_loop_timer()
+`CamSubNode` 当前支持把 `config` 传成字符串或 `CameraProfile`。
+
+内置字符串预设有：
+
+- `realsense_d435i`
+- `realsense_d435i_compressed`
+- `realsense_d435i_align`
+- `realsense_d435i_align_compressed`
+- `realsense_d435i_infra`
+- `zed_mini`
+
+注意：虽然构造函数类型提示里写了 `dict`，但当前实现实际只接受：
+
+- `str`
+- `CameraProfile`
+
+## 3. 依附模式下的典型用法
+
+`SigLoMa-VLM` 的入口脚本就是直接把它注册进 `nodes_dict`：
+
+```
+nodes_dict = {
+    "vlm_node": Robot2VLMBridge,
+    "joystick": JoystickSDKNode,
+    "camera": CamSubNode,
+}
 ```
 
-### 2.2 算法处理处读取数据
-在具体执行逻辑的 `BaseHandler` (如 `PickPlaceFSMHandlers`) 或 `BaseAgent` 内部，不再需要像原生 ROS 那样书写独立的回调函数存储图像，你可以直接读取缓存在节点属性中的 `numpy` 数据。
+然后在 Manager 中用握手保证首帧到达：
 
-```python
-class PickPlaceFSMHandlers(BaseHandlers):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 从资源池拿到相机的引用
-        self.camera: CamSubNode = self.nodes.get("camera")
-
-    def handle_ai_confirm_pick(self):
-        # 【关键】非常直观地同步获取最新图像矩阵 (H, W, C)
-        img = self.camera.img  
-        
-        # 也可以同步获取时间戳或深度图
-        timestamp = self.camera.img_timestamp
-        depth = self.camera.depth
-        
-        bbox_data = self.get_target_bbox(img, target_type="toy")
-        # 后续视觉处理...
+```
+self.add_handshake_rule(
+    "Camera Stream",
+    lambda: self.nodes["camera"].img is not None,
+)
 ```
 
----
+这样 `handlers.handle()` 真正开始执行时，通常已经能拿到有效图像。
 
-## 3. 高级配置参数
+## 4. 典型参数
 
-在新版本的 `ros_base` 架构中，相机的配置参数已被模块化为 `CameraProfile` 数据类。在实例化 `CamSubNode` 或在 Manager 注册时传递 `kwargs` 时，可以使用以下关键参数：
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| config | "realsense_d435i_align" | 预设相机配置 |
+| record | False | 是否后台录制视频 |
+| record_fps | 20 | 录制帧率上限 |
+| vis_rgb | False | 开启 RGB 窗口 |
+| vis_depth | False | 开启深度伪彩窗口 |
+| gamma | 2.0 | Gamma 预处理 |
+| use_clahe | False | CLAHE 局部对比度增强 |
 
-| 参数名称 | 类型 | 默认值 | 描述说明 |
-| :--- | :--- | :--- | :--- |
-| `config` | `str` 或 `CameraProfile` | `"realsense_d435i_align"` | 相机类型模板映射。内置支持 `realsense_d435i`、`realsense_d435i_compressed`、`zed_mini` 等配置预设。 |
-| `record` | `bool` | `False` | 开启多线程视频数据持久化写入，日志文件落盘存储到 `~/Data/rosbags/`。 |
-| `record_fps` | `int` | `20` | 控制写盘时的限制帧率。 |
-| `vis_rgb` | `bool` | `False` | 自动开启一个利用 cv2 渲染的低频窗口以供快速可视化。 |
-| `vis_depth` | `bool` | `False` | 可视化 Jet Colormap 后的深度数据图像。 |
-| `gamma` | `float` | `2.0` | Gamma 光照矫正系数，大于 1 提升环境亮度。 |
-| `use_clahe` | `bool` | `False` | 开启局部对比度增强，对阴影和细节提亮有显著帮助。 |
+### 录制行为
 
-### 独立测试与验证
-你可以脱离 Manager 直接作为独立 Node 测试相机的联通性，由于内部重写了独立模式方法，支持快速用命令测试：
+如果 `record=True`，当前实现会：
 
-```bash
-python3 /home/robot/project/ros_base/ros_base/nodes/camera/cam_sub_node.py \
+- 起一个后台线程
+- 把图像写入 `mp4`
+- 把时间戳写入文本文件
+
+输出目录格式为：
+
+```
+~/Data/rosbags/track_session_YYYYMMDD_HHMM/
+```
+
+## 5. 独立调试方式
+
+源码里已经内置了命令行入口：
+
+```
+python3 ros_base/nodes/camera/cam_sub_node.py \
     --camera realsense_d435i_align \
     --vis_rgb \
     --clahe
 ```
+
+如果你想同时看深度：
+
+```
+python3 ros_base/nodes/camera/cam_sub_node.py \
+    --camera realsense_d435i_align \
+    --vis_rgb \
+    --vis_depth
+```
+
+## 6. 与 `PoseProcessor` 的配合
+
+`CamSubNode` 本身只负责拿图和相机信息。真正把：
+
+- `bbox + depth`
+- `odom`
+- `camera extrinsics`
+
+转成世界坐标的，是 `ros_base.nodes.camera.pose_processor.PoseProcessor`。
+
+在 `SigLoMa-VLM` 中，这部分由 `Robot2VLMBridge.pose_processor` 持有，用于：
+
+- 获取机器人 base 在 world 下的位置
+- 把选中的目标框转换到世界坐标
+
+## 7. 适合它做什么，不适合它做什么
+
+适合：
+
+- 订阅并缓存最新图像
+- 轻量预处理
+- 临时可视化
+- 开发期录制
+
+不适合：
+
+- 在回调里做重型模型推理
+- 承担整套视觉业务逻辑
+- 在同一个回调里处理复杂状态机
+
+这些应该继续留在 Agent 和 Handler 中。

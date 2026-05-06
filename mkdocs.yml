@@ -49,16 +49,23 @@ plugins:
         - locale: en
           name: English
           build: true
-      nav_translations:
-        en:
-          首页: Home
-          快速上手: Quick Start
-          环境配置: Installation
-          核心架构: Architecture
-          核心概念: Core Concepts
-          参考应用工程: Examples
-          可复用模块: Modules
-          进阶指南: Advanced Guides
+          nav_translations:
+            首页: Home
+            快速上手: Quick Start
+            环境配置: Installation
+            核心架构: Architecture
+            核心概念: Core Concepts
+            "base_manager (系统管家)": "base_manager (System Manager)"
+            "base_node (双模态节点)": "base_node (Dual-Mode Node)"
+            "base_agent (算力与算法)": "base_agent (Computation and Algorithms)"
+            "base_handler (状态机与调度)": "base_handler (State Machines and Scheduling)"
+            参考应用工程: Examples
+            "具身智能 (SigLoMa-VLM)": "Embodied Intelligence (SigLoMa-VLM)"
+            "运动控制 (Quad-Deploy)": "Locomotion Control (Quad-Deploy)"
+            可复用模块: Reusable Modules
+            启动编排系统: Launch Orchestration System
+            相机系统: Camera System
+            "工具箱 (Utils)": "Utilities (Utils)"
 
 
 markdown_extensions:
@@ -92,13 +99,9 @@ nav:
     - base_agent (算力与算法): core-concepts/agent.md
     - base_handler (状态机与调度): core-concepts/handler.md
   - 参考应用工程:
-    - 具身智能 (HomiQuad-VLM): examples/homiquad-vlm.md
+    - 具身智能 (SigLoMa-VLM): examples/sigloma-vlm.md
     - 运动控制 (Quad-Deploy): examples/quad-deploy.md
   - 可复用模块:
     - 启动编排系统: modules/launcher.md
     - 相机系统: modules/camera-system.md
-    - 异步可视化: modules/visualization.md
     - 工具箱 (Utils): modules/utils.md
-  - 进阶指南:
-    - 多进程架构设计: guides/multi-process.md
-    - 性能调优: guides/performance.md

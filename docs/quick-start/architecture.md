@@ -1,209 +1,179 @@
 # 核心架构全景
 
-ROS Base 将一个复杂的机器人系统解构为四个标准化的核心元素：**Manager**、**Node**、**Agent** 和 **Handler**。它们在单线程事件循环中高效协作：
+ROS Base 把一个机器人程序拆成四个固定角色：
 
-```mermaid
-graph TB
-    subgraph EnvWrapper [Environment]
-        direction TB
-        World[World]
-    end
+- `BaseManager`: 生命周期和主循环
+- `BaseNode`: 通信与数据缓存
+- `BaseAgent`: 算法与计算
+- `BaseHandlers`: 调度与状态机
 
-    subgraph System["BaseManager Node (Single Process)"]
-        direction TB
-
-        subgraph EventLoop["ROS Event Loop (Main Thread)"]
-            direction TB
-            TimerTrigger["Timer Trigger (50Hz)"]
-            MsgCallback["Subscription Callback"]
-        end
-        
-        subgraph LogicFlow ["Sequential Execution"]
-            direction TB
-            InputNode["Input Node<br>(Buffer Update)"]
-            LogicHandler["BaseHandler<br>(FSM Dispatch)"]
-            ComputeAgent["BaseAgent<br>(Computation)"]
-            OutputNode["Output Node<br>(Publisher)"]
-        end
-    end
-
-    %% Event Sources
-    World == "1. ROS Topic" ==> MsgCallback
-    MsgCallback -.-> InputNode
-    TimerTrigger -.-> LogicHandler
-
-    %% Logic Chain
-    LogicHandler -- "2. Read State" --> InputNode
-    LogicHandler -- "3. Compute" --> ComputeAgent
-    ComputeAgent -- "4. Return" --> LogicHandler
-    LogicHandler -- "5. Action" --> OutputNode
-    OutputNode == "6. Publish" ==> World
-
-    %% Styles
-    classDef yellow fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-    classDef blue fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
-    classDef green fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
-    classDef box fill:#fff,stroke:#999,stroke-dasharray:5 5;
-    
-    class InputNode,OutputNode yellow;
-    class LogicHandler blue;
-    class ComputeAgent green;
-    class EventLoop box;
-```
-
-
----
-
-## 1. 核心组件详解与示例
-
-### 🕵️ BaseManager (系统管家)
-
-`BaseManager` 是系统的主进程入口，也是唯一的 ROS Node。它像一个容器，容纳了所有的组件。
-
-```python
-class MyManager(BaseManager):
-    def __init__(self):
-        # 1. 注册组件字典
-        super().__init__(
-            nodes_dict={"sensor": SensorNode}, 
-            agents_dict={"algo": AlgorithmAgent}, 
-            handlers_class=LogicHandler
-        )
-        # 2. 启动 50Hz 主循环
-        self.start_main_loop_timer(50)
-```
-
-### 🔌 BaseNode (通信接口)
-
-`BaseNode` 负责将外部的 ROS 消息“搬运”到 Manager 的内存中，或者将内存中的指令“搬运”出去。
-
-```python
-class SensorNode(BaseNode):
-    def callback(self, msg):
-        # 关键点：直接把数据挂到 self 上，供 Manager 随时访问
-        # 不再需要通过 Topic 转发给内部模块
-        self.latest_msg = msg
-```
-
-### 🧠 BaseAgent (算力核心)
-
-`BaseAgent` 是纯粹的函数式计算单元。它不关心数据从哪里来，只关心输入和输出。
-
-```python
-class AlgorithmAgent(BaseAgent):
-    def inference(self, input_data):
-        # 纯计算，无 ROS 依赖，方便单独测试
-        result = self.model.process(input_data)
-        return result
-```
-
-### 🚦 BaseHandler (业务调度)
-
-`BaseHandler` 是每帧被自动调用的逻辑中枢。
-
-```python
-class LogicHandler(BaseHandlers):
-    def handle(self):
-        # 1. 从 Node 读取数据 (Zero-Copy)
-        data = self.nodes['sensor'].latest_msg
-        
-        # 2. 调用 Agent 计算
-        if data is not None:
-            res = self.agents['algo'].inference(data)
-            
-        # 3. 通过 Node 发布指令
-        self.nodes['actuator'].publish_cmd(res)
-```
-
----
-
-## 2. 系统运行流水线 (Pipeline)
-
-一个基于 ros_base 的程序启动后，会严格经历以下四个阶段。以下代码展示了框架内部的核心实现逻辑：
+最关键的一点是：**在依附模式下，Node 和 Agent 都注册到同一个 Manager 上，共享同一个 ROS 主进程上下文。**
 
 ```mermaid
 graph LR
-    A["1. Registry<br>(注册阶段)"] --> B["2. Handshake<br>(握手阶段)"]
-    B --> C["3. Main Loop<br>(主循环运行)"]
-    C --> D["4. Shutdown<br>(资源释放)"]
+    WorldIn["外部环境 / ROS2 输入"] --> Callback["1. Subscription Callback"]
+
+    subgraph ManagerProcess["BaseManager Process"]
+        Callback --> NodeCache["2. BaseNode 缓存数据"]
+        Timer["Manager Timer"] --> Handler["3. BaseHandlers.handle()"]
+        NodeCache --> Handler
+        Handler --> Agent["4. BaseAgent 计算"]
+        Agent --> Handler
+        Handler --> NodePub["5. BaseNode 发布结果"]
+    end
+
+    NodePub --> WorldOut["6. 外部环境 / 执行器"]
 ```
 
-### 阶段 1: Registry (注册)
+---
 
-在初始化阶段，Manager 会遍历用户提供的字典，实例化所有对象，并注入 `self.manager` 引用，建立“星形连接”。
+## 1. 代码里的真实关系
 
-```python
-# BaseManager 内部实现逻辑
-def _register_components(self, nodes_dict, agents_dict):
-    # 实例化每一个 Node
-    for name, node_cls in nodes_dict.items():
-        node_instance = node_cls()
-        # 关键：注入 Manager 引用，打通上下文
-        node_instance.setup(manager=self)
-        self.nodes[name] = node_instance
-        
-    # 实例化每一个 Agent
-    for name, agent_cls in agents_dict.items():
-        agent_instance = agent_cls()
-        agent_instance.setup(manager=self)
-        self.agents[name] = agent_instance
+### `BaseManager`
+
+`BaseManager` 直接继承 `rclpy.node.Node`，是真正参与 ROS2 spin 的对象。构造时会完成三件事：
+
+1. 注册 `nodes_dict`
+2. 注册 `agents_dict`
+3. 注册 `handlers_class`
+
+注册时，Manager 会把自己作为 `manager=self` 传给这些对象。
+
+### `BaseNode`
+
+`BaseNode` 本身不是 `Node` 子类，而是一个代理包装层：
+
+- 有 `manager` 时，`create_subscription()` 等接口都转发给 Manager
+- 无 `manager` 时，会自己持有一个临时 `rclpy.node.Node`
+
+这就是“双模态”的来源。
+
+### `BaseAgent`
+
+`BaseAgent` 不创建 pub/sub，重点是计算与状态维护。被注册到 Manager 后，可以通过：
+
+- `self.nodes`
+- `self.agents`
+- `self.state`
+- `self.timestamp`
+
+读取上下文。
+
+### `BaseHandlers`
+
+`BaseHandlers.handle()` 是主循环里默认的业务入口。它既可以：
+
+- 自己维护一套内部状态机
+- 也可以通过 `self.state` 直接读写 `manager.state`
+
+这两种写法在现有示例仓里都能看到。
+
+---
+
+## 2. 程序启动后会经历什么
+
+```mermaid
+graph LR
+    A["Registry"] --> B["Handshake"]
+    B --> C["create_timer"]
+    C --> D["rclpy.spin"]
+    D --> E["release_resources + shutdown"]
 ```
 
-### 阶段 2: Handshake (握手)
+### 阶段 1: Registry
 
-为了防止系统在传感器未就绪时空转报错，Manager 通过 `_handshake_rules` 进行阻塞检查。
+在 `BaseManager.__init__()` 中：
 
-```python
-# 用户代码：定义规则
-self.add_handshake_rule("Lidar Ready", lambda: self.nodes['lidar'].scan is not None)
-
-# BaseManager 内部实现逻辑
-def _check_handshake(self):
-    for name, rule_func in self._handshake_rules.items():
-        if not rule_func():
-            self.get_logger().warn(f"Waiting for: {name}...")
-            return False
-    return True
+```
+super().__init__(
+    node_name="PickPlaceOrchestrator",
+    nodes_dict=nodes_dict,
+    agents_dict=agents_dict,
+    handlers_class=PickPlaceFSMHandlers,
+    node_freq_hz=10,
+)
 ```
 
-### 阶段 3: Main Loop (主循环)
+Manager 会依次实例化：
 
-这是系统的心脏。握手通过后，定时器会以固定频率（如 50Hz）调用 Handler。
-
-```python
-# BaseManager 内部实现逻辑
-def _main_loop_callback(self):
-    # 1. 首先检查握手状态
-    if not self._handshake_passed:
-        if self._check_handshake():
-            self._handshake_passed = True
-            self.get_logger().info("System Started!")
-        return
-
-    # 2. 执行核心业务逻辑
-    try:
-        # 这里调用用户的 Handler.handle()
-        self.handlers.handle()
-    except Exception as e:
-        self.get_logger().error(f"Error in main loop: {e}")
+```
+self.nodes[node_name] = node_class(manager=self, *args, **kwargs)
+self.agents[agent_name] = agent_class(manager=self, *args, **kwargs)
+self.handlers = handlers_class(manager=self, *args, **kwargs)
 ```
 
-### 阶段 4: Shutdown (退出)
+### 阶段 2: Handshake
 
-当程序接收到 `SIGINT (Ctrl+C)` 时，框架会按顺序释放资源，防止僵尸进程或硬件未复位。
+`start_main_loop_timer()` 在真正创建 timer 之前，会先循环执行握手检查：
 
-```python
-# BaseManager 内部实现逻辑
-def release_resources(self):
-    self.get_logger().info("Shutting down...")
-    
-    # 倒序关闭，防止依赖问题
-    if self.handlers:
-        self.handlers.stop()
-        
-    for agent in self.agents.values():
-        agent.release()
-        
-    for node in self.nodes.values():
-        node.release()
 ```
+self.add_handshake_rule("Camera Stream", lambda: self.nodes["camera"].img is not None)
+```
+
+只要有任何条件未满足，Manager 就会持续 `spin_once(self, timeout_sec=0.1)`，直到外部消息把条件喂满。
+
+### 阶段 3: Main Loop
+
+握手通过后，Manager 创建固定频率的 timer，并在 `main_loop()` 里执行：
+
+1. 可选的 manager 级状态切换
+2. `handlers.handle()`
+3. `timestamp += 1`
+4. 可选频率日志
+
+### 阶段 4: Shutdown
+
+`start_main_loop_timer()` 自己负责完整的收尾流程：
+
+- 关闭子进程
+- 调用 `release_resources()`
+- `destroy_node()`
+- `rclpy.shutdown()`
+
+所以一般**不要**在外面再手动 `rclpy.spin(manager)`。
+
+---
+
+## 3. 两种常见状态机写法
+
+### 写法 A: Handler 自己维护细粒度状态
+
+`SigLoMa-VLM` 使用这种方式：
+
+- `manager.state` 只保存大级别状态或启动态
+- `PickPlaceFSMHandlers` 里自己维护 `current_state` / `prev_state`
+
+优点：
+
+- 状态定义可以更细
+- 更适合任务型 FSM
+
+### 写法 B: Handler 直接驱动 `manager.state`
+
+`quad_deploy` 使用这种方式：
+
+- `self.state` 直接映射到 `manager.state`
+- 状态值是 `"cold_start"`, `"turn"`, `"navigation"` 这类全局字符串
+
+优点：
+
+- 全局状态更集中
+- 更适合控制态切换和跨模块广播
+
+---
+
+## 4. 什么时候要拆多进程
+
+ROS Base 并不是要求所有东西都塞进一个 Manager。
+
+建议留在同一 Manager 内：
+
+- 高频共享上下文
+- 轻量回调缓存
+- 需要直接读写同一份状态的业务流
+
+建议拆到独立进程：
+
+- 相机 SDK 或阻塞型外部命令
+- 会长期占住 GIL 的重计算
+- 不适合污染主控制循环的外部工具链

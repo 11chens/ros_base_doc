@@ -1,81 +1,129 @@
 # BaseAgent: 算力与算法
 
-`BaseAgent` 是系统的“大脑皮层”。如果说 Node 是手脚（负责收发），Manager 是心脏（提供动力），那么 Agent 就是负责思考的单元。
+`BaseAgent` 是 `ros_base` 中承载算法和计算的核心组件，其职责重点在于算法逻辑、状态维护与计算流程组织。
 
-## 1. 设计原则：纯粹性
+## 1. 当前基类提供了什么
 
-一个优秀的 Agent 设计应当遵循 **"IPO 原则"**:
+`BaseAgent` 当前实现很轻：
 
-*   **I (Input)**: 输入数据（通常来自 Node 的缓存）。
-*   **P (Process)**: 核心算法处理（神经网络、运动学解算、路径规划）。
-*   **O (Output)**: 输出结果（通常是控制指令或状态）。
+```
+class BaseAgent(ABC):
+    def __init__(self, manager=None, *args, **kwargs):
+        self._manager = manager
+        self._logger = CustomLogger(self.__class__.__name__)
+```
 
-!!! danger "严禁操作 ROS"
-    **Agent 不应该包含任何 `create_publisher` 或 `create_subscription` 代码！**
-    
-    *   **为什么?** 为了保证算法的可移植性和可测试性。
-    *   如果 Agent 不依赖 ROS，你就可以直接实例化它，输入一张本地图片，测试它的输出，而不需要启动整个 ROS 环境。
+基类默认提供的上下文属性有：
 
-## 2. 编写一个 BaseAgent
+- `self.logger`
+- `self.nodes`
+- `self.agents`
+- `self.timestamp`
+- `self.state`
+- `self.node_freq_hz`
+- `self.get_clock()`
 
-### 基础示例
+其中 `reset()` 是抽象方法，子类必须实现；`handle()` 则保留给你按需定义。
 
-```python
-from ros_base.agents.base_agent import BaseAgent
+## 2. 推荐的 Agent 形态
 
-class TrackingAgent(BaseAgent):
-    def __init__(self, model_path, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 加载模型 (耗时操作放在 init)
-        self.model = load_yolo(model_path)
+一个好的 Agent，通常满足下面三点：
 
-    def handle(self, image_np):
-        """
-        核心处理函数
-        Args:
-            image_np: numpy array 格式的图片
-        Returns:
-            bbox: [x, y, w, h]
-        """
-        if image_np is None:
-            return None
-            
-        # 纯计算逻辑
-        result = self.model.detect(image_np)
-        return result
+1. 输入明确
+2. 输出明确
+3. 内部是可以单独测试的计算逻辑
+
+比如：
+
+```
+class TrackerAgent(BaseAgent):
+    def handle_initial_bbox(self, initial_bbox, img):
+        ...
+
+    def handle_sigma(self, img, depth, timestamp):
+        ...
 
     def reset(self):
-        # 清除内部状态 (如果有)
-        self.model.reset_tracker()
+        ...
 ```
 
-## 3. Agent 的分类
+这里真正重要的函数，输入都是普通 Python / NumPy 数据，而不是 ROS pub/sub 过程本身。
 
-在 `ros_base` 实战中，Agent 通常分为两类：
+## 3. 两类典型 Agent
 
-### 3.1 执行型 (Control Agent)
-*   **特点**: 高频 (100Hz+)，低延迟，输入输出简单。
-*   **示例**: `quad_deploy` 中的 `LocoAgent`。
-*   **实现**: 通常做简单的 PID 计算或轻量级神经网络 (ONNX) 推理。
+### 任务型 Agent
 
-### 3.2 任务型 (Task Agent)
-*   **特点**: 低频 (1-30Hz)，计算耗时，可能涉及大模型调用。
-*   **示例**: `homi_vlm` 中的 `QwenVLMAgent` (调用云端 API) 或 `TrackerAgent` (运行分割模型)。
-*   **策略**:
-    *   **分时复用**: 不要让它阻塞主循环。通常由 Handler 控制，在特定状态下才调用。
-    *   **异步处理**: 如果耗时实在太长（>100ms），建议配合多线程或将其剥离为独立进程。
+以 `SigLoMa-VLM` 为例：
 
-## 4. 上下文访问
+- `QwenVLMAgent`: 云端 VLM 调用，低频、高延迟
+- `TrackerAgent`: 图像跟踪和 sigma 点生成
+- `UIAgent`: 任务过程中的界面与叠加显示
 
-虽然 Agent 提倡“纯函数”式设计，但有时也需要访问系统状态。
-`BaseAgent` 中自动注入了 `self.manager`：
+这种 Agent 往往：
 
-```python
-def my_method(self):
-    # 可以访问同一 Manager 下的其他 Agent
-    tracker = self.agents['tracker']
-    
-    # 获取系统时间
-    t = self.get_clock().now()
+- 不适合每一帧都跑
+- 需要由 Handler 在特定状态下调度
+- 需要避免拖住整个主循环
+
+### 控制型 Agent
+
+以 `quad_deploy` 为例：
+
+- `StandAgent`
+- `SigLoMaLocoAgent`
+- `SigLoMaNavAgent`
+- `SigLoMaTurnAgent`
+
+这些 Agent 基本都继承自 `BaseRLAgent`，特点是：
+
+- 运行频率高
+- 每一帧都要尽量稳定
+- 会用 `decimation` 控制真正的模型推理节奏
+
+## 4. `BaseRLAgent` 展示了高频 Agent 的一个范式
+
+`quad_deploy` 里的 `BaseRLAgent` 是很好的参考：
+
 ```
-但请谨慎使用，过多的交叉引用会降低模块的独立性。建议优先通过函数参数传递所需数据。
+def handle(self):
+    if self.timestamp % self.decimation == 0:
+        action, p_gains, d_gains, done = self.step()
+    else:
+        action, p_gains, d_gains, done = None, None, None, None
+    self.robot.send_action(action, p_gains, d_gains)
+```
+
+这说明在 `ros_base` 体系下，Agent 并不一定每次 `handle()` 都做完整重计算。常见策略包括：
+
+- 每 N 帧推理一次
+- 高频只做轻量后处理
+- 把重计算和控制下发解耦
+
+## 5. 关于上下文访问
+
+Agent 虽然可以直接访问 `self.nodes` 和 `self.agents`，但推荐把这当作“接线层”能力，而不是核心设计手段。
+
+更稳的写法是：
+
+- 在 Handler 中取数据
+- 把必要数据作为参数传给 Agent
+- Agent 内部只处理当前任务
+
+例如：
+
+```
+img = self.camera.img
+bbox = self.QVLM.handle_bbox(img_np=img, curr_target="toy", multi=False)
+```
+
+而不是让 Agent 深层函数到处主动读取 `self.nodes["camera"]`。
+
+## 6. 离线测试建议
+
+如果你希望 Agent 更容易脱离 ROS 测试：
+
+- 构造函数里只放模型加载和轻量配置
+- 核心方法尽量接收普通数据类型
+- 不把 Topic 名、QoS、消息类型硬编码进 Agent
+
+这样即使没有 Manager，你仍然可以直接实例化它，并复用 `self._logger` 输出日志。

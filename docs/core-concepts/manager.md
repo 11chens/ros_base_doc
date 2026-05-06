@@ -1,112 +1,171 @@
 # BaseManager: 系统管家
 
-`BaseManager` 是整个框架的基石，也是开发者编写机器人**启动脚本**时直接继承的类。
+`BaseManager` 是整个框架的主入口。当前实现里，它负责四件事：
 
-## 1. 为什么它是唯一的 "ROS Node"?
+1. 注册 `Node / Agent / Handler`
+2. 持有统一的 ROS2 Node 上下文
+3. 执行握手和主循环
+4. 在退出时统一释放资源和清理子进程
 
-在 `ros_base` 架构中，为了避免多进程通信的开销，我们将所有子模块“依附”在一个主进程内。`BaseManager` 继承自 `rclpy.node.Node`，它是操作系统和 ROS2 网络中可见的物理实体。
+## 1. 当前源码里的构造参数
 
-**单线程事件循环机制**：
-Manager 使用默认的 ROS2 Executor（通常是 SingleThreadedExecutor）。这意味着：
-1.  **Timer Loop**: 主逻辑（FSM、Handlers）由定时器触发。
-2.  **External Msg**: 订阅的消息回调会插入到主线程的空闲时间执行，更新内部状态（State）。
-3.  **Thread Safety**: 由于所有逻辑都在同一个线程中顺序执行，访问 `self.nodes` 或 `self.agents` 中的共享变量通常不需要锁（Lock）。
+`BaseManager` 目前最常用的参数有：
 
-```python
-class BaseManager(Node):
-    def __init__(self, node_name, ...):
-        super().__init__(node_name)
-        # 初始化资源容器
-        self.nodes = {}
-        self.agents = {}
-        self.handlers = None
+```
+BaseManager(
+    node_name="BaseManager",
+    nodes_dict={},
+    agents_dict={},
+    handlers_class=None,
+    node_freq_hz=200,
+    start_state=None,
+    custom_logger=None,
+    log_freq=False,
+)
 ```
 
-## 2. 如何使用 Manager?
+它会在 `__init__()` 里立即完成注册：
 
-开发者通常不需要修改 `BaseManager` 的源码，而是通过**继承**或**配置**来创建一个具体的任务管理器。
-
-### 示例：创建一个「捡球任务」管理器
-
-模仿 `homi_vlm/scripts/pick_place_run_v2.py` 的设计：
-
-```python
-from ros_base.manager.base_manager import BaseManager
-
-# 1. 导入你的组件
-from my_nodes import CameraNode, ChassisNode
-from my_agents import VisionAgent, ControlAgent
-from my_handlers import PickPlaceHandler
-
-class PickPlaceManager(BaseManager):
-    def __init__(self):
-        # 2. 定义要注册的模块
-        nodes_dict = {
-            "camera": CameraNode,
-            "chassis": ChassisNode
-        }
-        agents_dict = {
-            "vision": VisionAgent,
-            "control": ControlAgent
-        }
-        
-        # 3. 初始化父类，自动完成注册
-        super().__init__(
-            node_name="pick_place_task",
-            nodes_dict=nodes_dict,
-            agents_dict=agents_dict,
-            handlers_class=PickPlaceHandler,
-            node_freq_hz=50  # 主循环频率 50Hz
-        )
-        
-        # 4. 添加握手规则 (Handshake Rules)
-        # 只有当 chassis 节点的 ready 属性为 True 时，才开始主循环
-        self.add_handshake_rule("Chassis Ready", lambda: self.nodes["chassis"].ready)
-
-# 5. 启动
-def main():
-    rclpy.init()
-    manager = PickPlaceManager()
-    manager.start_main_loop_timer()  # 开启心脏跳动
-    rclpy.spin(manager)
+```
+self._register_nodes(nodes_dict, *args, **kwargs)
+self._register_agents(agents_dict, *args, **kwargs)
+self._register_handlers(handlers_class, *args, **kwargs)
 ```
 
-## 3. 核心功能详解
+这意味着传给 Manager 的很多业务参数，也会继续透传给 Node、Agent 和 Handler。
 
-### 3.1 资源注册 (Registry)
-Manager 会自动遍历 `nodes_dict` 和 `agents_dict`：
-1.  实例化类对象。
-2.  将 `self` (Manager实例) 注入给子对象，使它们能反向访问系统资源。
-3.  将实例保存在 `self.nodes` 和 `self.agents` 字典中。
+## 2. 一个真实用法
 
-### 3.2 握手机制 (Handshake)
-这是 `ros_base` 的一大特色。在进入正式控制循环前，Manager 会阻塞等待所有硬件和依赖就绪。
+`SigLoMa-VLM` 中的入口脚本就是标准写法：
 
-*   **避免报错**: 防止因为相机还没数据，第一帧算法处理就报 `NoneType` 错误。
-*   **可视化提示**: 也可以在 Logs 中清晰看到系统正在等待哪个模块。
+```
+class PickPlaceRUN(BaseManager):
+    def __init__(self, wait=["img"], *args, **kwargs):
+        kwargs["handlers_class"] = PickPlaceFSMHandlers
+        super().__init__(*args, **kwargs)
 
-```python
-self.add_handshake_rule("描述文字", 检查函数_返回bool)
+        if "img" in wait:
+            self.add_handshake_rule(
+                "Camera Stream",
+                lambda: self.nodes["camera"].img is not None,
+            )
 ```
 
-### 3.3 多进程挂载 (Multi-Process)
-虽然 Manager 本身是单进程的，但它支持管理子进程。这对于 Python 这种受 GIL 限制的语言尤为重要。
+启动时：
 
-*   **适用场景**: 相机 SDK 采集（通常是阻塞的）、繁重的图像预处理、外部 Bash 脚本。
-*   **使用方法**:
-    ```python
-    # 在 main 函数中
-    from ros_base.manager.base_manager import register_multiprocess_nodes
-    
-    # 这些 Node 会在独立的 Python 进程中启动
-    mp_nodes = {"lidar_driver": LidarNode}
-    processes = register_ultiprocess_nodes(mp_nodes_dict=mp_nodes)
-    ```
+```
+rclpy.init()
+manager = PickPlaceRUN(
+    node_name="PickPlaceOrchestrator",
+    nodes_dict=nodes_dict,
+    agents_dict=agents_dict,
+    node_freq_hz=10,
+    start_state="PREPARE",
+)
+manager.start_main_loop_timer()
+```
 
-## 4. 最佳实践
+这里 `start_main_loop_timer()` 会自己完成：
 
-!!! warning "性能陷阱"
-    **不要贪心！** 一个 Manager 受到 Python 单线程性能限制。
-    *   如果要在 500Hz 跑运控，就不要在同一个 Manager 里跑 10Hz 的 YOLO 检测。
-    *   **建议方案**: 将 YOLO 单独做成一个进程，或者使用 ros_base 的多进程机制分离。
-    *   Manager 适合做 **"逻辑控制 (Logic)"** 和 **"中低频决策 (Decision)"**。
+- 握手循环
+- `create_timer`
+- `rclpy.spin`
+- 收尾和 `shutdown`
+
+## 3. 握手机制
+
+握手规则通过 `add_handshake_rule()` 注册：
+
+```
+self.add_handshake_rule("Robot Connection", lambda: hasattr(self.nodes["robot"], "low_state"))
+```
+
+`start_main_loop_timer()` 会在进入主循环前反复调用 `handshake()`：
+
+- 没有规则时直接通过
+- 有规则时必须全部满足
+- 未满足时通过 `rclpy.spin_once(self, timeout_sec=0.1)` 等待新消息推进状态
+
+这对相机首帧、硬件总线、上位机桥接特别有用。
+
+## 4. 主循环里到底发生什么
+
+`BaseManager.main_loop()` 当前实现顺序很简单：
+
+1. 若定义了 `get_state_switch()`，先尝试切换 `self.state`
+2. 若定义了 `state_handle()`，执行该逻辑
+3. 如果注册了 `handlers`，执行 `handlers.handle()`
+4. `self.timestamp += 1`
+5. 按需打印频率
+
+所以推荐的实践是：
+
+- 业务逻辑优先放在 `BaseHandlers.handle()`
+- `manager.state` 只保存顶层状态
+- 高频循环里避免阻塞操作
+
+## 5. `release_resources()` 作为业务侧释放钩子
+
+`BaseManager.release_resources()` 在基类里是空实现，专门留给业务仓重载。
+
+比如 `PickPlaceRUN.release_resources()` 会：
+
+- 关闭 UI Agent
+- 遍历 Node 调用 `release_resources()`
+- 遍历 Agent 调用 `close()`
+
+因此，**所有需要显式回收的线程、文件句柄、窗口、硬件连接，都建议在这里统一收口。**
+
+## 6. 多进程挂载能力
+
+当前代码仓直接提供了两个帮助函数：
+
+```
+from ros_base.manager.base_manager import (
+    register_multiprocess_nodes,
+    shutdown_multiprocess_nodes,
+)
+```
+
+### `register_multiprocess_nodes()`
+
+支持两类子进程：
+
+- `mp_nodes_dict`: 把某个 `BaseNode` 子类拉到独立 Python 进程里
+- `cmds_dict`: 启动外部命令，比如 `socat`、自定义 bash 脚本
+
+示例来自 `quad_deploy`：
+
+```
+cmds_dict["sim_port"] = (
+    "socat -d -d pty,raw,echo=0,link=/tmp/pty10 "
+    "pty,raw,echo=0,link=/tmp/pty11 &"
+)
+processes = register_multiprocess_nodes(mp_nodes_dict, cmds_dict)
+```
+
+然后把 `processes` 传回 Manager：
+
+```
+manager.start_main_loop_timer(processes)
+```
+
+Manager 退出时会自动调用 `shutdown_multiprocess_nodes(processes)`。
+
+## 7. 使用建议
+
+适合放在同一个 Manager 里的内容：
+
+- 轻量订阅缓存
+- 高频共享状态
+- 需要顺序执行的状态机
+
+建议拆出去的内容：
+
+- 阻塞式外部命令
+- 相机 SDK 或第三方工具进程
+- 明显拖慢主频的长耗时计算
+
+一个 Manager 不要什么都塞
+
+`ros_base` 的价值在于“组合”，不是把所有逻辑重新写回一个大类。高频控制和重视觉推理如果长期共处一个 Manager，最终还是会互相拖慢。
