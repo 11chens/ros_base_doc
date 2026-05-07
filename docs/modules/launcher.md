@@ -4,6 +4,7 @@
 
 - 多工程目录
 - Conda + ROS 混合环境
+- 系统级 ROS2 启动脚本
 - tmux 常驻调试
 - CPU 绑核
 
@@ -20,6 +21,8 @@
    - 可选 `conda activate`
    - `cd` 到目标工程目录
    - 执行 `command`
+
+在真机项目里，`ros_setup` 往往不是一个普通的 ROS 环境脚本，而是类似 `setup_id1.sh` 的统一入口。它通常会先 `source` 系统级 ROS2，再设置 `ROS_DOMAIN_ID=1`。对于宇树真机，这样做可以避免与自带 SDK 的 DDS 通道冲突。
 
 ## 2. 配置文件结构
 
@@ -49,7 +52,7 @@ nodes:
 
 - `session_name`: tmux 会话名
 - `workspace_root`: 所有 `project` 的根目录
-- `ros_setup`: 可选，先 source 的 ROS 环境脚本
+- `ros_setup`: 可选，先 source 的 ROS 环境脚本；真机中通常建议指向 `setup_id1.sh`
 - `conda_env`: 可选，先激活的 Conda 环境
 
 ### `nodes`
@@ -87,6 +90,13 @@ sessions:
         project: "ros_base"
         command: "python ros_base/nodes/kalman/kf_sigma_node.py"
 ```
+
+其中 `setup_id1.sh` 的典型职责是：
+
+- `source` 系统级 ROS2
+- `export ROS_DOMAIN_ID=1`
+
+如果系统需要和宇树 SDK 同时运行，这种写法通常比把环境变量分散写进多个命令里更稳，也更便于统一维护。
 
 ## 4. 命令解析的几个细节
 

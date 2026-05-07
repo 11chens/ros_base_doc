@@ -1,10 +1,11 @@
-<!-- i18n-sync: source=docs/modules/launcher.md; sha256=91246C6FA5A995CC9002EB330EF1DD5D2E990C9268EC55B19E3707B2F7ADB05F -->
+<!-- i18n-sync: source=docs/modules/launcher.md; sha256=45DE994CC4A6BED6428B31FFE9A740907AB69B1056DBB596FC53696030F85DAD -->
 # Base Launcher System
 
 `BaseLauncher` is the tool in `ros_base` that brings up many processes in one consistent way. It does not replace ROS launch. Instead, it targets patterns that show up frequently in robot projects:
 
 - Multiple project directories
 - Mixed Conda and ROS environments
+- System-level ROS2 setup scripts
 - Long-running `tmux` debugging sessions
 - Optional CPU pinning
 
@@ -21,6 +22,8 @@
    - Optional `conda activate`
    - `cd` into the target project directory
    - Run `command`
+
+In real-robot projects, `ros_setup` is often more than a generic ROS environment script. It commonly points to a unified entry such as `setup_id1.sh`, which first sources system-level ROS2 and then sets `ROS_DOMAIN_ID=1`. On Unitree robots, this helps avoid DDS channel conflicts with the built-in SDK.
 
 ## 2. Configuration structure
 
@@ -50,7 +53,7 @@ nodes:
 
 - `session_name`: the `tmux` session name
 - `workspace_root`: root directory for all `project` entries
-- `ros_setup`: optional ROS environment script sourced first
+- `ros_setup`: optional ROS environment script sourced first; on robots it is often recommended to point this to `setup_id1.sh`
 - `conda_env`: optional Conda environment activated first
 
 ### `nodes`
@@ -88,6 +91,13 @@ sessions:
         project: "ros_base"
         command: "python ros_base/nodes/kalman/kf_sigma_node.py"
 ```
+
+The typical responsibility of `setup_id1.sh` is:
+
+- `source` system-level ROS2
+- `export ROS_DOMAIN_ID=1`
+
+If the system needs to run alongside the Unitree SDK, this pattern is usually more robust than scattering environment variables across multiple commands.
 
 ## 4. A few command-resolution details
 
