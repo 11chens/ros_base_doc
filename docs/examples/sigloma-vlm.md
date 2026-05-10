@@ -2,6 +2,14 @@
 
 `SigLoMa-VLM` 展示了 `ros_base` 在“高层任务编排”场景下的典型用法：相机、桥接、VLM、跟踪器、UI 都运行在统一主流程里，由一个 FSM 驱动。
 
+完整公开入口请参考 [`SigLoMa-Code`](https://github.com/11chens/SigLoMa-Code)。
+该仓库整理了训练、部署、硬件连接、演示视频和相关仓库地图，适合作为学习
+`ros_base` 如何支撑真实机器人系统的完整案例。
+
+- 部署流程：[`docs/deployment.md`](https://github.com/11chens/SigLoMa-Code/blob/main/docs/deployment.md)
+- 硬件连接：[`docs/hardware.md`](https://github.com/11chens/SigLoMa-Code/blob/main/docs/hardware.md)
+- 仓库关系：[`docs/repositories.md`](https://github.com/11chens/SigLoMa-Code/blob/main/docs/repositories.md)
+
 ## 1. 当前入口文件
 
 当前主入口是：

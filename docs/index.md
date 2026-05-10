@@ -11,6 +11,11 @@
 - `SigLoMa-VLM`: 低频任务编排、VLM 调用、视觉跟踪。
 - `quad_deploy`: 高频 RL 控制、硬件桥接、手柄状态机。
 
+如果你想直接看一个完整的公开实例，可以从
+[`SigLoMa-Code`](https://github.com/11chens/SigLoMa-Code) 开始。它是基于
+`ros_base` 搭建的真实机器人系统入口，串联了训练代码、VLM 任务编排、四足机器人部署、
+Kalman 滤波集成、硬件连接说明和实机部署流程。
+
 ---
 
 ## 为什么需要 ROS Base
@@ -75,5 +80,10 @@ cd ros_base_doc
 pip install -r requirements.txt
 mkdocs serve
 ```
+
+在线文档入口：
+
+- 中文：<https://11chens.github.io/ros_base_doc/>
+- English：<https://11chens.github.io/ros_base_doc/en/>
 
 接下来建议先看 [环境配置](quick-start/installation.md) 和 [核心架构](quick-start/architecture.md)。

@@ -1,7 +1,17 @@
-<!-- i18n-sync: source=docs/examples/sigloma-vlm.md; sha256=F6281CE945437EB7D475EA7E5EB0B9C5B5D6DAD11C8B05287E2D5103F5F3DF91 -->
+<!-- i18n-sync: source=docs/examples/sigloma-vlm.md; sha256=74B8528286E500FF2BC4F7F8E67170BC3C64E0AB466BF6A3332088041C85689C -->
 # Example Project: SigLoMa-VLM
 
 `SigLoMa-VLM` shows a typical `ros_base` setup for high-level task orchestration. Cameras, bridge nodes, VLM calls, trackers, and UI all run under one unified main flow driven by a finite-state machine.
+
+For the complete public entry point, see
+[`SigLoMa-Code`](https://github.com/11chens/SigLoMa-Code). That repository
+collects training, deployment, hardware wiring, demo media, and the full
+repository map, making it a practical reference for learning how `ros_base`
+supports a real robot system.
+
+- Deployment workflow: [`docs/deployment.md`](https://github.com/11chens/SigLoMa-Code/blob/main/docs/deployment.md)
+- Hardware setup: [`docs/hardware.md`](https://github.com/11chens/SigLoMa-Code/blob/main/docs/hardware.md)
+- Repository map: [`docs/repositories.md`](https://github.com/11chens/SigLoMa-Code/blob/main/docs/repositories.md)
 
 ## 1. Current entry file
 

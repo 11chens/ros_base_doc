@@ -1,4 +1,4 @@
-<!-- i18n-sync: source=docs/index.md; sha256=B22AA9726C25FBC1E9183C80C88D0A35AE9CD75C50C0A4A6F5130448D0681BBC -->
+<!-- i18n-sync: source=docs/index.md; sha256=2940EC4F38F6ABD468251542D2B65320B9467B803012AABECB7D407990468A40 -->
 # ROS Base Project
 
 **ROS Base** is a ROS2 Python framework for complex robotic applications. Its goal is not to wrap ROS one more time, but to reduce the engineering problems that most easily grow out of control in large projects into a fixed structure:
@@ -11,6 +11,12 @@ This documentation is synced to the current `ros_base` implementation and explai
 
 - `SigLoMa-VLM`: low-frequency task orchestration, VLM calls, and visual tracking.
 - `quad_deploy`: high-frequency RL control, hardware bridging, and joystick-driven state machines.
+
+If you want to start from a complete public example, use
+[`SigLoMa-Code`](https://github.com/11chens/SigLoMa-Code). It is a real robot
+system entry repository built on top of `ros_base`, connecting training code,
+VLM task orchestration, quadruped deployment, Kalman-filter integration,
+hardware notes, and real-robot deployment into one workflow.
 
 ---
 
@@ -76,5 +82,10 @@ cd ros_base_doc
 pip install -r requirements.txt
 mkdocs serve
 ```
+
+Online documentation:
+
+- English: <https://11chens.github.io/ros_base_doc/en/>
+- Chinese: <https://11chens.github.io/ros_base_doc/>
 
 The recommended next step is to read [Installation](quick-start/installation.md) and [Architecture](quick-start/architecture.md).
