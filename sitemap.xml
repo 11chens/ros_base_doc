@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/core-concepts/agent/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/agent/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/agent/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/core-concepts/handler/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/handler/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/handler/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/core-concepts/manager/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/manager/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/manager/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/core-concepts/node/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/node/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/node/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/examples/quad-deploy/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/examples/quad-deploy/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/examples/quad-deploy/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/examples/sigloma-vlm/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/examples/sigloma-vlm/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/examples/sigloma-vlm/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/modules/camera-system/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/modules/camera-system/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/modules/camera-system/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/modules/launcher/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/modules/launcher/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/modules/launcher/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/modules/utils/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/modules/utils/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/modules/utils/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/quick-start/architecture/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/quick-start/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/quick-start/architecture/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/quick-start/installation/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/quick-start/installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/quick-start/installation/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/core-concepts/agent/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/agent/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/agent/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/core-concepts/handler/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/handler/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/handler/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/core-concepts/manager/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/manager/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/manager/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/core-concepts/node/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/core-concepts/node/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/core-concepts/node/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/examples/quad-deploy/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/examples/quad-deploy/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/examples/quad-deploy/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/examples/sigloma-vlm/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/examples/sigloma-vlm/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/examples/sigloma-vlm/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/modules/camera-system/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/modules/camera-system/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/modules/camera-system/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/modules/launcher/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/modules/launcher/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/modules/launcher/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/modules/utils/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/modules/utils/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/modules/utils/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/quick-start/architecture/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/quick-start/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/quick-start/architecture/"/>
+    </url>
+    <url>
+        <loc>https://11chens.github.io/ros_base_doc/en/quick-start/installation/</loc>
+        <lastmod>2026-05-10</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://11chens.github.io/ros_base_doc/en/quick-start/installation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://11chens.github.io/ros_base_doc/quick-start/installation/"/>
+    </url>
+</urlset>
